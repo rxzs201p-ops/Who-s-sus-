@@ -17,10 +17,12 @@
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),zlib=require('zlib');
 const {monitorEventLoopDelay}=require('perf_hooks');
+const {Pool}=require('pg');
 try{for(const l of fs.readFileSync(path.join(__dirname,'.env'),'utf8').split(/\r?\n/)){const m=l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);if(m&&!(m[1] in process.env))process.env[m[1]]=m[2].replace(/^(['"])(.*)\1$/,'$2')}}catch(e){}
 
 // ===== Konfigurasi =====
 const E=process.env,PORT=E.PORT||3000,DB=path.join(__dirname,'data.json'),TMP=DB+'.tmp',IDX=path.join(__dirname,'index.html'),
+POOL=E.DATABASE_URL?new Pool({connectionString:E.DATABASE_URL,ssl:{rejectUnauthorized:false},max:+E.DB_POOL_MAX||5,idleTimeoutMillis:30000,connectionTimeoutMillis:10000}):null,SERVER_ID=E.SERVER_ID||'primary',SERVER_URL=E.SERVER_URL||(E.RENDER_EXTERNAL_HOSTNAME?'https://'+E.RENDER_EXTERNAL_HOSTNAME:'http://localhost:'+PORT),
 KEY=E.AI_API_KEY||E.ANTHROPIC_API_KEY||'',
 PROV=(E.AI_PROVIDER||(E.AI_BASE_URL?'openai':'anthropic')).toLowerCase(),
 BASE=(E.AI_BASE_URL||(PROV==='anthropic'?'https://api.anthropic.com':'https://api.openai.com/v1')).replace(/\/+$/,''),
@@ -41,11 +43,31 @@ const EL=monitorEventLoopDelay({resolution:10});EL.enable();setInterval(()=>EL.r
 let data={chat:[],profiles:{},guests:0};
 try{data=Object.assign(data,JSON.parse(fs.readFileSync(DB,'utf8')))}catch(e){}
 let dirty=false,saving=false,chatC=null;
+const dirtyProfiles=new Set(),pendingChat=[];
 function prune(){const ks=Object.keys(data.profiles);if(ks.length<=MAXPROF)return;ks.sort((a,b)=>(data.profiles[a].t||0)-(data.profiles[b].t||0)).slice(0,ks.length-Math.floor(MAXPROF*0.9)).forEach(k=>delete data.profiles[k])}
-function save(){if(!dirty||saving)return;dirty=false;saving=true;prune();
+async function flushNeon(){
+ if(!POOL||saving||(!dirtyProfiles.size&&!pendingChat.length))return;
+ saving=true;
+ const profKeys=[...dirtyProfiles];profKeys.forEach(k=>dirtyProfiles.delete(k));
+ const chats=pendingChat.splice(0,pendingChat.length);
+ try{
+  for(const id of profKeys){const d=data.profiles[id];if(!d)continue;await POOL.query(`INSERT INTO whos_sus.players(player_id,username,profile_data,updated_at) VALUES($1,$2,$3::jsonb,NOW()) ON CONFLICT(player_id) DO UPDATE SET username=EXCLUDED.username,profile_data=EXCLUDED.profile_data,updated_at=NOW()`,[id,String(d.name||id).slice(0,40),JSON.stringify(d)])}
+  for(const c of chats)await POOL.query(`INSERT INTO whos_sus.chat_messages(player_id,username,message,created_at) VALUES($1,$2,$3,to_timestamp($4/1000.0))`,[c.u||null,String(c.n||'Pemain').slice(0,40),String(c.x||'').slice(0,60),c.t||Date.now()]);
+ }catch(e){console.error('Neon write error:',e.message);for(const k of profKeys)dirtyProfiles.add(k);pendingChat.unshift(...chats)}
+ finally{saving=false}
+}
+function save(){if(POOL){flushNeon().catch(e=>console.error('Neon flush:',e.message));return}if(!dirty||saving)return;dirty=false;saving=true;prune();
  fs.writeFile(TMP,JSON.stringify(data),e=>{if(e){dirty=true;saving=false;return}fs.rename(TMP,DB,e2=>{saving=false;if(e2)dirty=true})})}
 setInterval(save,3000).unref();
-function flush(){try{if(dirty){prune();fs.writeFileSync(TMP,JSON.stringify(data));fs.renameSync(TMP,DB)}}catch(e){}}
+function flush(){if(POOL){flushNeon().catch(e=>console.error('Neon shutdown flush:',e.message));return}try{if(dirty){prune();fs.writeFileSync(TMP,JSON.stringify(data));fs.renameSync(TMP,DB)}}catch(e){}}
+async function initNeon(){if(!POOL)return;await POOL.query('SELECT 1');
+ const pr=await POOL.query('SELECT player_id,profile_data FROM whos_sus.players ORDER BY updated_at DESC LIMIT $1',[MAXPROF]);
+ data.profiles={};for(const row of pr.rows)data.profiles[row.player_id]=row.profile_data||{};
+ const ch=await POOL.query('SELECT player_id,username,message,(extract(epoch from created_at)*1000)::bigint AS ts FROM whos_sus.chat_messages ORDER BY created_at DESC LIMIT 200');
+ data.chat=ch.rows.reverse().map(x=>({n:x.username,u:x.player_id||'',x:x.message,t:Number(x.ts)}));chatC=null;
+ await POOL.query(`INSERT INTO whos_sus.server_nodes(server_id,server_url,status,active_rooms,load_score,last_heartbeat,updated_at) VALUES($1,$2,'online',0,0,NOW(),NOW()) ON CONFLICT(server_id) DO UPDATE SET server_url=EXCLUDED.server_url,status='online',last_heartbeat=NOW(),updated_at=NOW()`,[SERVER_ID,SERVER_URL]);
+ console.log('Neon connected · profiles '+pr.rowCount+' · chat '+ch.rowCount);
+}
 for(const s of['SIGINT','SIGTERM'])process.on(s,()=>{flush();for(const r of ROOMS.values())for(const p of r.ps.values())try{p.socket.write(Buffer.from([0x88,2,0x03,0xe9]))}catch(e){}setTimeout(()=>process.exit(0),200)});
 
 // ===== Rate limit =====
@@ -97,21 +119,24 @@ async function route(q,r){const u=q.url.split('?')[0],M=q.method;
  if(u==='/api/chat'&&M==='GET')return sendC(q,r,chatV());
  if(u==='/api/chat'&&M==='POST'){if(!limChat(ipOf(q)))return send(r,429,{error:'terlalu cepat'});
   const b=await body(q),x=str(b.x,60).trim(),uid=str(b.u,24).replace(/[^\w-]/g,'');if(!x)return send(r,400,{});
-  data.chat.push({n:str(b.n,12),u:uid,x,t:Date.now()});if(data.chat.length>200)data.chat.splice(0,data.chat.length-200);chatC=null;dirty=true;return send(r,200,{ok:1})}
+  const entry={n:str(b.n,12),u:uid,x,t:Date.now()};data.chat.push(entry);if(data.chat.length>200)data.chat.splice(0,data.chat.length-200);if(POOL)pendingChat.push(entry);chatC=null;dirty=true;return send(r,200,{ok:1})}
  if(u==='/api/profiles'&&M==='GET')return sendC(q,r,profList());
  if(u==='/api/leaderboard'&&M==='GET')return sendC(q,r,board());
  const m=u.match(/^\/api\/profiles\/([\w-]{1,24})$/);
  if(m&&M==='PUT'){if(!limApi(ipOf(q)))return send(r,429,{error:'terlalu cepat'});
   const b=await body(q),o_=data.profiles[m[1]]||{};
   data.profiles[m[1]]={name:str(b.name,12),lv:num(b.lv),xp:num(b.xp),nx:num(b.nx),mt:num(b.mt),wn:num(b.wn),kl:num(b.kl),rp:Math.min(num(b.rp),99999),pk:Math.min(Math.max(num(b.pk),num(b.rp),num(o_.pk)),99999),age:num(b.age),reg:str(b.reg,20),bio:str(b.bio,40),show:b.show?1:0,sreg:b.sreg?1:0,t:Date.now()};
-  dirty=true;return send(r,200,{ok:1})}
+  if(POOL)dirtyProfiles.add(m[1]);dirty=true;return send(r,200,{ok:1})}
  send(r,404,{})}
 
 const SRV=http.createServer((q,r)=>{route(q,r).catch(()=>{if(!r.headersSent)send(r,400,{});else r.end()})});
 SRV.keepAliveTimeout=65000;SRV.headersTimeout=66000;SRV.requestTimeout=30000;
 SRV.on('connection',s=>s.setNoDelay(true));
 SRV.on('clientError',(e,s)=>{try{s.destroy()}catch(_){}});
-SRV.listen(PORT,()=>console.log('Skeld server di http://localhost:'+PORT+' · tick '+TICK+'ms · AI: '+(READY?'aktif ['+PROV+'] '+MODELS.quick+' / '+MODELS.default:'MATI (set AI_API_KEY'+(PROV==='anthropic'?'':' dan AI_MODEL')+')')));
+async function boot(){try{await initNeon();SRV.listen(PORT,()=>console.log('Skeld server di http://localhost:'+PORT+' · tick '+TICK+'ms · DB: '+(POOL?'Neon':'local JSON')+' · AI: '+(READY?'aktif ['+PROV+'] '+MODELS.quick+' / '+MODELS.default:'MATI (set AI_API_KEY'+(PROV==='anthropic'?'':' dan AI_MODEL')+')')))}catch(e){console.error('Database startup failed:',e.message);process.exit(1)}}
+boot();
+if(POOL){const hb=setInterval(()=>{POOL.query(`UPDATE whos_sus.server_nodes SET status='online',active_rooms=$2,load_score=$3,last_heartbeat=NOW(),updated_at=NOW() WHERE server_id=$1`,[SERVER_ID,ROOMS.size,+(process.memoryUsage().rss/1048576).toFixed(1)]).catch(e=>console.error('Heartbeat error:',e.message))},15000);hb.unref();for(const sig of ['SIGINT','SIGTERM'])process.once(sig,()=>{POOL.query(`UPDATE whos_sus.server_nodes SET status='offline',last_heartbeat=NOW(),updated_at=NOW() WHERE server_id=$1`,[SERVER_ID]).catch(()=>{}).finally(()=>POOL.end().catch(()=>{}))})}
+
 
 // ===== WebSocket multiplayer (tanpa dependensi) =====
 // Server memegang peran, kill, rapat/vote, tugas, vent, revive, tebakan Blackjack, dan kondisi menang.
