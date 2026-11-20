@@ -102,10 +102,11 @@ const waReady=()=>!!WA_TOKEN&&(WA_PROV==='fonnte'||!!WA_PHONE)&&typeof fetch==='
 // tpl: undefined = pakai WA_TEMPLATE; '' = mesej teks; param = isi pembolehubah {{1}} template
 async function sendWA(to,msg,tpl,param){if(!waReady())return false;
  try{let r;
-  if(WA_PROV==='fonnte')r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:WA_TOKEN,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:to,message:msg}).toString()});
+  if(WA_PROV==='fonnte')r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:WA_TOKEN,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:to,message:msg,typing:'true',delay:'2'}).toString()});
   else{const T=tpl===undefined?WA_TPL:tpl,P=String(param!=null?param:msg).replace(/\s*\n\s*/g,' | ').slice(0,900);
    r=await fetch('https://graph.facebook.com/v21.0/'+encodeURIComponent(WA_PHONE)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+WA_TOKEN,'content-type':'application/json'},body:JSON.stringify(T?{messaging_product:'whatsapp',to,type:'template',template:{name:T,language:{code:WA_LANG},components:[{type:'body',parameters:[{type:'text',text:P}]}]}}:{messaging_product:'whatsapp',to,type:'text',text:{body:msg}})})}
-  if(!r.ok){console.error('WA gagal:',r.status,(await r.text()).slice(0,200));return false}return true}
+  const tx=await r.text();let j={};try{j=JSON.parse(tx)}catch(e){}console.log('WA resp:',WA_PROV,r.status,tx.slice(0,300));
+  if(!r.ok||j.status===false){console.error('WA gagal:',r.status,tx.slice(0,300));return false}return true}
  catch(e){console.error('WA error:',e.message);return false}}
 async function notifyAdmin(kind,text,cool){const now=Date.now();if(waLast[kind]&&now-waLast[kind]<(cool==null?300000:cool))return;waLast[kind]=now;
  const msg='['+SERVER_ID+'] '+text;console.log('[AMARAN-ADMIN]',msg);await sendWA(WA_TO,msg)}
@@ -213,7 +214,7 @@ async function authRoute(q,r,u,M){
   h.push(now);PHT.set(phh,h);
   const code=String(crypto.randomInt(100000,1000000)),rid=crypto.randomBytes(12).toString('base64url');
   await otpPut({rid,ph:phh,username:user,pass_hash:await hashPw(pw),code_hash:sha2(code+rid),tries:0,tail:ph.slice(-4),tv:TERMS_VER,exp:now+300000});
-  const ok=await sendWA(ph,'Kod pengesahan Project 41 anda: '+code+'\nSah 5 minit. Jangan kongsi kod ini dengan sesiapa.',E.WA_OTP_TEMPLATE||'',code);
+  const ok=await sendWA(ph,'Hai! Kod untuk daftar akaun Project 41 anda ialah '+code+' (sah 5 minit). Jangan kongsi dengan sesiapa.',E.WA_OTP_TEMPLATE||'',code);
   if(!ok&&!DEV_OTP){await otpDel(rid);return err(r,502,'Gagal menghantar kod WhatsApp. Semak nombor anda dan cuba lagi.')}
   if(DEV_OTP)console.log('[DEV_OTP]',user,code);
   return send(r,200,Object.assign({ok:1,rid,tail:ph.slice(-4),wait:60},DEV_OTP?{dev:code}:{}))}
