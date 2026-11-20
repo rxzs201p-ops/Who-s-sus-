@@ -1,0 +1,110 @@
+<!doctype html><html lang="ms"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Daftar Akaun · Project 41</title>
+<style>
+:root{--bg:#0b0d17;--card:#151a2e;--bd:#2a3354;--tx:#e8ecff;--mu:#9aa5cf;--ac:#7dff9a;--er:#ff6b6b}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,sans-serif}
+body{padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));display:flex;justify-content:center}
+.w{width:100%;max-width:440px}.br{text-align:center;margin:8px 0 18px}.br b{font-size:13px;letter-spacing:.25em;color:var(--ac)}
+h1{margin:2px 0 0;font-size:24px}.br p{margin:4px 0 0;color:var(--mu);font-size:14px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
+label{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
+input[type=text],input[type=password],input[type=tel]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:#0d1226;color:var(--tx);font-size:16px}
+input:focus{outline:2px solid var(--ac);outline-offset:0}
+.h{font-size:12px;color:var(--mu);margin-top:3px}
+.btn{width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--ac);color:#06210f;font-weight:700;font-size:16px}
+.btn:disabled{opacity:.4}.btn.g{background:transparent;color:var(--mu);border:1px solid var(--bd);margin-top:10px}
+.er{color:var(--er);font-size:14px;margin-top:10px;min-height:1px}
+.ck{display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;font-size:14px}.ck input{margin-top:4px;width:20px;height:20px}
+.ck a{color:var(--ac);text-decoration:underline}
+.dim{opacity:.45}
+.id{font:700 40px/1 ui-monospace,monospace;letter-spacing:.15em;text-align:center;color:var(--ac);margin:14px 0;user-select:all}
+.cd{font:700 28px/1 ui-monospace,monospace;letter-spacing:.35em;text-align:center}
+#m{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:14px;z-index:9}
+#m .b{background:var(--card);border:1px solid var(--bd);border-radius:14px;max-width:520px;width:100%;max-height:86vh;display:flex;flex-direction:column}
+#m h2{margin:0;padding:14px 16px;font-size:18px;border-bottom:1px solid var(--bd)}
+#mt{overflow:auto;padding:12px 16px;font-size:14px;color:#cfd6f5}#mt h3{font-size:15px;margin:14px 0 4px;color:var(--tx)}#mt p,#mt li{margin:4px 0}
+#m .f{padding:12px 16px;border-top:1px solid var(--bd)}#m .f .btn{margin-top:0}
+</style></head><body><div class="w">
+<div class="br"><b>PROJECT 41</b><h1>Daftar Akaun</h1><p>Who's SUS · pendaftaran pantas</p></div>
+
+<div class="c" id="s1">
+ <label for="u">Username</label><input id="u" type="text" maxlength="12" autocomplete="username" autocapitalize="off" placeholder="3-12 aksara (huruf/nombor/_)">
+ <label for="p">Nombor WhatsApp (untuk kod pengesahan)</label><input id="p" type="tel" inputmode="tel" autocomplete="tel" placeholder="cth 60123456789">
+ <div class="h">Kod 6 digit akan dihantar ke WhatsApp nombor ini oleh Project 41.</div>
+ <label for="w">Kata laluan</label><input id="w" type="password" maxlength="64" autocomplete="new-password" placeholder="Sekurang-kurangnya 8 aksara">
+ <label for="w2">Ulang kata laluan</label><input id="w2" type="password" maxlength="64" autocomplete="new-password">
+ <div class="ck"><input type="checkbox" id="c1" disabled><div>Saya telah membaca dan bersetuju dengan <a href="#" id="l1">Terma &amp; Syarat</a>. <span class="h">(Buka dan baca sehingga habis untuk mengaktifkan)</span></div></div>
+ <div class="ck"><input type="checkbox" id="c2" disabled><div>Saya telah membaca dan bersetuju dengan <a href="#" id="l2">Dasar Perkhidmatan &amp; Privasi</a>. <span class="h">(Buka dan baca sehingga habis untuk mengaktifkan)</span></div></div>
+ <div class="er" id="e1"></div>
+ <button class="btn" id="b1" disabled>Hantar Kod Pengesahan</button>
+ <button class="btn g" onclick="location.href='/'">Kembali ke permainan</button>
+</div>
+
+<div class="c" id="s2" style="display:none">
+ <p style="margin-top:0">Kod 6 digit telah dihantar ke WhatsApp <b id="tl"></b>. Sah selama 5 minit.</p>
+ <label for="cd">Kod pengesahan</label><input id="cd" class="cd" type="tel" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••">
+ <div class="er" id="e2"></div>
+ <button class="btn" id="b2">Sahkan &amp; Daftar</button>
+ <button class="btn g" id="rs" disabled>Hantar semula kod</button>
+</div>
+
+<div class="c" id="s3" style="display:none;text-align:center">
+ <h2 style="margin:0 0 4px">Pendaftaran berjaya 🎉</h2>
+ <p style="margin:0;color:var(--mu)">ID log masuk anda (6 nombor):</p>
+ <div class="id" id="rid"></div>
+ <p style="color:#ffd23f;font-size:14px">Catat ID ini. Anda memerlukan ID dan kata laluan untuk log masuk. Kami tidak boleh menunjukkan kata laluan anda semula.</p>
+ <button class="btn" id="go">Mula Bermain</button>
+</div>
+</div>
+
+<div id="m"><div class="b"><h2 id="mh"></h2><div id="mt"></div><div class="f"><button class="btn" id="mc" disabled>Skrol sehingga habis untuk menutup</button></div></div></div>
+
+<script>
+const TV='2026-11-20';
+const DOCS={
+ tos:{t:'Terma & Syarat',h:`<p><i>Versi ${TV}. Draf templat: semak dengan penasihat undang-undang sebelum digunakan secara rasmi.</i></p>
+<h3>1. Penerimaan</h3><p>Dengan mendaftar atau menggunakan Who's SUS ("Perkhidmatan") yang dikendalikan oleh Project 41 ("Kami"), anda bersetuju dengan terma ini. Jika tidak bersetuju, jangan daftar atau gunakan Perkhidmatan.</p>
+<h3>2. Kelayakan</h3><p>Anda mesti berumur sekurang-kurangnya 13 tahun. Jika di bawah umur dewasa di negara anda, anda mesti mendapat kebenaran ibu bapa atau penjaga.</p>
+<h3>3. Akaun</h3><ul><li>Anda memilih username dan kata laluan, dan sistem memberi ID 6 nombor.</li><li>Anda bertanggungjawab atas keselamatan ID dan kata laluan. Jangan kongsi dengan sesiapa.</li><li>Satu nombor WhatsApp hanya boleh dikaitkan dengan bilangan akaun terhad.</li><li>Maklumat pendaftaran mesti benar dan nombor WhatsApp mesti milik anda.</li></ul>
+<h3>4. Tingkah laku</h3><p>Dilarang: menipu atau menggunakan perisian pihak ketiga, mengeksploitasi pepijat, menyerang atau mengganggu server (termasuk DDoS), mengganggu atau menghina pemain lain, menyamar sebagai orang lain, menyebarkan kandungan haram, lucah atau berunsur kebencian, serta cuba mengakses akaun orang lain.</p>
+<h3>5. Kandungan pengguna</h3><p>Nama, bio dan mesej chat adalah tanggungjawab anda. Kami boleh menapis, memadam atau menyekat kandungan yang melanggar terma ini.</p>
+<h3>6. Penggantungan dan penamatan</h3><p>Kami boleh menggantung atau memadam akaun, tanpa notis, jika terma dilanggar atau demi keselamatan Perkhidmatan. Anda boleh meminta pemadaman akaun melalui admin.</p>
+<h3>7. Ketersediaan</h3><p>Perkhidmatan diberikan "seadanya". Kami tidak menjamin ia sentiasa tersedia atau bebas ralat. Progres, koin dan item dalam permainan tidak mempunyai nilai wang dan boleh diset semula apabila perlu.</p>
+<h3>8. Had liabiliti</h3><p>Setakat yang dibenarkan undang-undang, Kami tidak bertanggungjawab atas kerugian tidak langsung yang timbul daripada penggunaan Perkhidmatan.</p>
+<h3>9. Perubahan terma</h3><p>Kami boleh mengemas kini terma ini. Penggunaan berterusan selepas perubahan bermakna anda menerimanya.</p>
+<h3>10. Hubungi</h3><p>Hubungi admin Project 41 melalui saluran sokongan dalam permainan.</p>`},
+ pol:{t:'Dasar Perkhidmatan & Privasi',h:`<p><i>Versi ${TV}. Draf templat: semak dengan penasihat undang-undang sebelum digunakan secara rasmi.</i></p>
+<h3>1. Data yang kami kumpul</h3><ul><li><b>Akaun:</b> username, ID 6 nombor, kata laluan (disimpan sebagai hash, bukan teks biasa).</li><li><b>Nombor WhatsApp:</b> digunakan untuk menghantar kod pengesahan. Kami menyimpan hash nombor dan 4 digit terakhir sahaja untuk menghadkan bilangan akaun dan semakan keselamatan.</li><li><b>Permainan:</b> level, XP, statistik, bio, pilihan paparan dan mesej chat awam.</li><li><b>Teknikal:</b> alamat IP dan log permintaan untuk keselamatan serta menangkis serangan.</li></ul>
+<h3>2. Cara kami menggunakan data</h3><p>Untuk mengurus akaun, mengesahkan identiti, menjalankan permainan dalam talian, mencegah penipuan dan serangan, serta memperbaiki Perkhidmatan. Kami tidak menjual data peribadi anda.</p>
+<h3>3. Pihak ketiga</h3><p>Kod pengesahan dihantar melalui WhatsApp menerusi penyedia mesej pihak ketiga. Pelayan dan pangkalan data dihoskan oleh penyedia awan, dan lalu lintas dilindungi oleh Cloudflare. Mereka hanya memproses data mengikut keperluan perkhidmatan.</p>
+<h3>4. Penyimpanan</h3><p>Data akaun disimpan selagi akaun aktif. Kod pengesahan tamat dalam 5 minit. Log teknikal disimpan untuk tempoh terhad.</p>
+<h3>5. Keselamatan</h3><p>Kami menggunakan kata laluan ber-hash, had percubaan login, penguncian sementara dan perlindungan anti-serangan. Tiada sistem yang selamat sepenuhnya, jadi gunakan kata laluan yang unik.</p>
+<h3>6. Hak anda</h3><p>Anda boleh meminta akses, pembetulan atau pemadaman data anda melalui admin, tertakluk kepada undang-undang perlindungan data peribadi yang terpakai (termasuk PDPA Malaysia).</p>
+<h3>7. Kanak-kanak</h3><p>Perkhidmatan ini bukan untuk di bawah 13 tahun. Jika kami mengetahui akaun milik kanak-kanak di bawah umur ini, akaun akan dipadam.</p>
+<h3>8. Perubahan dasar</h3><p>Dasar ini boleh dikemas kini dan versi terkini dipaparkan di halaman ini.</p>`}
+};
+const $=i=>document.getElementById(i);let RID='',ok1=0,ok2=0,T=0;
+const E=(i,m)=>{$(i).textContent=m||''};
+function open_(k,cb){const d=DOCS[k];$('mh').textContent=d.t;$('mt').innerHTML=d.h;$('m').style.display='flex';const mt=$('mt'),mc=$('mc');mt.scrollTop=0;mc.disabled=true;mc.textContent='Skrol sehingga habis untuk menutup';
+ const chk=()=>{if(mt.scrollTop+mt.clientHeight>=mt.scrollHeight-6){mc.disabled=false;mc.textContent='Saya telah membaca';cb()}};mt.onscroll=chk;setTimeout(chk,150);
+ mc.onclick=()=>{$('m').style.display='none'}}
+$('l1').onclick=e=>{e.preventDefault();open_('tos',()=>{ok1=1;$('c1').disabled=false})};
+$('l2').onclick=e=>{e.preventDefault();open_('pol',()=>{ok2=1;$('c2').disabled=false})};
+const upd=()=>{$('b1').disabled=!($('c1').checked&&$('c2').checked)};$('c1').onchange=upd;$('c2').onchange=upd;
+async function api(p,b){const r=await fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Ralat pelayan'),{j});return j}
+function tick(n){clearInterval(T);const b=$('rs');b.disabled=true;let s=n;const f=()=>{b.textContent=s>0?'Hantar semula kod ('+s+'s)':'Hantar semula kod';if(s--<=0){clearInterval(T);b.disabled=false}};f();T=setInterval(f,1000)}
+async function send_(){E('e1');E('e2');const u=$('u').value.trim(),p=$('p').value,w=$('w').value;
+ if(w!==$('w2').value){E('e1','Kata laluan tidak sepadan.');return}
+ $('b1').disabled=true;$('rs').disabled=true;
+ try{const j=await api('/api/auth/register',{username:u,phone:p,password:w,agree:true,tv:TV});RID=j.rid;$('tl').textContent='••••'+j.tail;$('s1').style.display='none';$('s2').style.display='block';tick(j.wait||60);$('cd').focus();if(j.dev)$('cd').value=j.dev}
+ catch(e){E($('s2').style.display==='block'?'e2':'e1',e.message);if(e.j&&e.j.wait&&$('s2').style.display==='block')tick(e.j.wait)}
+ finally{upd()}}
+$('b1').onclick=send_;$('rs').onclick=send_;
+$('b2').onclick=async()=>{E('e2');$('b2').disabled=true;
+ try{const j=await api('/api/auth/verify',{rid:RID,code:$('cd').value});
+  try{localStorage.setItem('sus_acc',JSON.stringify({id:j.id,name:j.name,tok:j.token}));localStorage.setItem('skuid','a'+j.id)}catch(e){}
+  $('rid').textContent=j.id;$('s2').style.display='none';$('s3').style.display='block'}
+ catch(e){E('e2',e.message+(e.j&&e.j.left!=null?' ('+e.j.left+' percubaan lagi)':''))}finally{$('b2').disabled=false}};
+$('go').onclick=()=>{location.href='/'};
+</script></body></html>
