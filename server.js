@@ -102,7 +102,7 @@ const waReady=()=>!!WA_TOKEN&&(WA_PROV==='fonnte'||!!WA_PHONE)&&typeof fetch==='
 // tpl: undefined = pakai WA_TEMPLATE; '' = mesej teks; param = isi pembolehubah {{1}} template
 async function sendWA(to,msg,tpl,param){if(!waReady())return false;
  try{let r;
-  if(WA_PROV==='fonnte')r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:WA_TOKEN,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:to,message:msg,typing:'true',delay:'2'}).toString()});
+  if(WA_PROV==='fonnte')r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:WA_TOKEN,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:to,message:msg,countryCode:'60',typing:'true',delay:'2'}).toString()});
   else{const T=tpl===undefined?WA_TPL:tpl,P=String(param!=null?param:msg).replace(/\s*\n\s*/g,' | ').slice(0,900);
    r=await fetch('https://graph.facebook.com/v21.0/'+encodeURIComponent(WA_PHONE)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+WA_TOKEN,'content-type':'application/json'},body:JSON.stringify(T?{messaging_product:'whatsapp',to,type:'template',template:{name:T,language:{code:WA_LANG},components:[{type:'body',parameters:[{type:'text',text:P}]}]}}:{messaging_product:'whatsapp',to,type:'text',text:{body:msg}})})}
   const tx=await r.text();let j={};try{j=JSON.parse(tx)}catch(e){}console.log('WA resp:',WA_PROV,r.status,tx.slice(0,300));
